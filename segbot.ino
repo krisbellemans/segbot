@@ -18,6 +18,7 @@ ITG3200 gyro;
 bool blinkState = false;
 float acc_pitch_angle = 0;
 float gyro_pitch_angle = 0;
+float filtered_angle = 0;
 float timestep = 0.02;
 float biasGyroX, biasGyroY, biasGyroZ, biasAccX, biasAccY, biasAccZ;
 unsigned long timer;
@@ -91,15 +92,20 @@ void loop()
 	lz = az - biasAccZ;
 
 	//acc_pitch_angle = asinf(lx / sqrt((lx * lx) + (lz * lz)));
-	acc_pitch_angle = atan2(lx, lz);
-	gyro_pitch_angle =
-	    gyro_pitch_angle + ((gy - biasGyroY) / 14.375) * timestep;
+	acc_pitch_angle = atan2(lx, lz) * (360.0 / (2 * PI));
+	gyro_pitch_angle = filtered_angle + ((gy - biasGyroY) / 14.375) * timestep;
+
+	// complementary filter combining gyro and acc data
+	filtered_angle = (0.98 * gyro_pitch_angle) + (0.02 * acc_pitch_angle);
 
 	Serial.print("acc: ");
-	Serial.print(acc_pitch_angle * 360.0 / (2 * PI));
+	Serial.print(acc_pitch_angle);
 	Serial.print("\t");
 	Serial.print("gyro: ");
-	Serial.println(-gyro_pitch_angle);
+	Serial.print(-gyro_pitch_angle);
+	Serial.print("\t");
+	Serial.print("filtered: ");
+	Serial.println(filtered_angle);
 
 	// blink LED to indicate activity
 	blinkState = !blinkState;
