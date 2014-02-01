@@ -96,7 +96,7 @@ void loop()
 	gyro_pitch_angle = filtered_angle + ((gy - biasGyroY) / 14.375) * timestep;
 
 	// complementary filter combining gyro and acc data
-	filtered_angle = (0.98 * gyro_pitch_angle) + (0.02 * acc_pitch_angle);
+	filtered_angle = (0.92 * gyro_pitch_angle) + (0.08 * acc_pitch_angle);
 
 	Serial.print("acc: ");
 	Serial.print(acc_pitch_angle);
