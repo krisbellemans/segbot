@@ -15,6 +15,10 @@ BMA150 accel;
 ITG3200 gyro;
 
 #define LED_PIN 13
+
+#define HIGH_PASS_COEFF	(float)0.92
+#define LOW_PASS_COEFF	(float)0.08
+
 bool blinkState = false;
 float acc_pitch_angle = 0;
 float gyro_pitch_angle = 0;
@@ -79,30 +83,42 @@ void setup()
 	pinMode(LED_PIN, OUTPUT);
 }
 
-void loop()
+static float calculate_acc_angle(void)
 {
 	int16_t ax, ay, az;
-	int16_t gx, gy, gz;
 	int32_t lx, lz;
-	timer = millis();
-	// read raw gyro measurements from device
 	accel.getAcceleration(&ax, &ay, &az);
-	gyro.getRotation(&gx, &gy, &gz);
 	lx = ax - biasAccX;
 	lz = az - biasAccZ;
+	//return asinf(lx / sqrt((lx * lx) + (lz * lz)));
+	return atan2(lx, lz) * (360.0 / (2 * PI));
+}
 
-	//acc_pitch_angle = asinf(lx / sqrt((lx * lx) + (lz * lz)));
-	acc_pitch_angle = atan2(lx, lz) * (360.0 / (2 * PI));
-	gyro_pitch_angle = filtered_angle + ((gy - biasGyroY) / 14.375) * timestep;
+static float calculate_gyro_angle(float feedback)
+{
+	int16_t gx, gy, gz;
+	gyro.getRotation(&gx, &gy, &gz);
+	return feedback + ((gy - biasGyroY) / 14.375) * timestep;
+}
 
+static float filter_angle(float gyro, float acc)
+{
 	// complementary filter combining gyro and acc data
-	filtered_angle = (0.92 * gyro_pitch_angle) + (0.08 * acc_pitch_angle);
+	return (HIGH_PASS_COEFF * gyro) + (LOW_PASS_COEFF * acc);
+}
+
+void loop()
+{
+	timer = millis();
+	acc_pitch_angle = calculate_acc_angle();
+	gyro_pitch_angle = calculate_gyro_angle(filtered_angle);
+	filtered_angle = filter_angle(gyro_pitch_angle, acc_pitch_angle);
 
 	Serial.print("acc: ");
 	Serial.print(acc_pitch_angle);
 	Serial.print("\t");
 	Serial.print("gyro: ");
-	Serial.print(-gyro_pitch_angle);
+	Serial.print(gyro_pitch_angle);
 	Serial.print("\t");
 	Serial.print("filtered: ");
 	Serial.println(filtered_angle);
