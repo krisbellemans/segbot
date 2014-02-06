@@ -16,8 +16,9 @@ ITG3200 gyro;
 
 #define LED_PIN 13
 
-#define HIGH_PASS_COEFF	(float)0.92
-#define LOW_PASS_COEFF	(float)0.08
+#define HIGH_PASS_COEFF	(float)(0.92)
+//#define LOW_PASS_COEFF	(float)0.08
+#define LOW_PASS_COEFF	(float)(1.00 - HIGH_PASS_COEFF)
 
 bool blinkState = false;
 float acc_pitch_angle = 0;
