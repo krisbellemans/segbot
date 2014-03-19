@@ -1,12 +1,13 @@
 #include "PID.h"
+#include "Arduino.h"
 
 PID::PID(void)
 {
 	kp = ki = kd = 0.0;
-	setpoint = 0.0;
+	setpoint = 90.0;
 	err_sum = 0.0;
 	last_err = 0.0;
-	time_delta = 0;
+	timeref = 0;
 }
 
 PID::PID(float kp, float ki, float kd)
@@ -14,10 +15,10 @@ PID::PID(float kp, float ki, float kd)
 	this->kp = kp;
 	this->ki = ki;
 	this->kd = kd;
-	setpoint = 0.0;
+	setpoint = 90.0;
 	err_sum = 0.0;
 	last_err = 0.0;
-	time_delta = 0;
+	timeref = 0;
 }
 
 void PID::set_kp(float kp)
@@ -49,11 +50,12 @@ float PID::update(float feedback)
 	unsigned long time_delta = now - timeref;
 	float error = setpoint - feedback;
 	this->err_sum += (error * time_delta);
-	float error_delta = (error - this->last_err) / time_delta;
+	float err_delta = (error - this->last_err) / time_delta;
 
-	output = this->kp * error + ki * this->err_sum + kd * error_delta;
+	output = this->kp * error + ki * constrain(this->err_sum, -100, 100) + kd * err_delta;
 	this->last_err = error;
 	this->timeref = now;
 
-	return output;
+	return constrain(output, -255, 255);
+	//return output;
 }
