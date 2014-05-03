@@ -3,22 +3,20 @@
 
 PID::PID(void)
 {
-	kp = ki = kd = 0.0;
-	setpoint = 90.0;
+	this->set_params(0.0, 0.0, 0.0);
+	this->set_setpoint(0.0);
 	err_sum = 0.0;
 	last_err = 0.0;
 	timeref = 0;
 }
 
-PID::PID(float kp, float ki, float kd)
+PID::PID(float kp, float ki, float kd, float setpoint)
 {
-	this->kp = kp;
-	this->ki = ki;
-	this->kd = kd;
-	setpoint = 90.0;
-	err_sum = 0.0;
-	last_err = 0.0;
-	timeref = 0;
+	this->set_params(kp, ki, kd);
+	this->set_setpoint(setpoint);
+	this->err_sum = 0.0;
+	this->last_err = 0.0;
+	this->timeref = 0;
 }
 
 void PID::set_kp(float kp)
@@ -43,16 +41,22 @@ void PID::set_params(float kp, float ki, float kd)
 	this->set_kd(kd);
 }
 
+void PID::set_setpoint(float setpoint)
+{
+	this->setpoint = setpoint;
+	this->timeref = millis();
+}
+
 float PID::update(float feedback)
 {
 	float output = 0.0;
 	unsigned long now = millis();
-	unsigned long time_delta = now - timeref;
+	unsigned long time_delta = now - this->timeref;
 	float error = setpoint - feedback;
-	this->err_sum += (error * time_delta);
+	this->err_sum += (error * (time_delta));
 	float err_delta = (error - this->last_err) / time_delta;
-
-	output = this->kp * error + ki * constrain(this->err_sum, -100, 100) + kd * err_delta;
+	//output = this->kp * error + ki * constrain(this->err_sum, -100, 100) + kd * err_delta;
+	output = this->kp * error + this->ki * this->err_sum + this->kd * err_delta;
 	this->last_err = error;
 	this->timeref = now;
 

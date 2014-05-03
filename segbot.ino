@@ -7,34 +7,38 @@
 #include "I2Cdev.h"
 #include "BMA150.h"
 #include "ITG3200.h"
-#include "PID.h"
+//#include "PID.h"
+#include <PID_v1.h>
 #include <math.h>
 
 // class default I2C address is 0x38
 
 BMA150 accel;
 ITG3200 gyro;
-PID pid;
+//PID pid;
 
-#define LED_PIN 13
-#define KP_PIN	0
-#define KI_PIN	1
-#define KD_PIN	2
+#define KP_PIN	1
+#define KI_PIN	2
+#define KD_PIN	3
+#define SP_PIN	0
+#define LED_PIN	13
+
+#define SETPOINT    (float)(89.9)
 
 /*******************************************************************************
  *			    Motor Driver Pins
  ******************************************************************************/
-#define STBY	10  // Standby
+#define STBY	10		// Standby
 
 // Motor A
-#define PWMA	3   // Speed
-#define AIN1	9   // Direction
-#define AIN2	8   // Direction
+#define PWMA	3		// Speed
+#define AIN1	9		// Direction
+#define AIN2	8		// Direction
 
 // Motor B
-#define PWMB	5   // Speed
-#define BIN1	11  // Direction
-#define BIN2	12  // Direction
+#define PWMB	5		// Speed
+#define BIN1	11		// Direction
+#define BIN2	12		// Direction
 
 #define FORWARD	0
 #define REVERSE	1
@@ -43,21 +47,22 @@ PID pid;
 #define MOTOR_B 1
 /******************************************************************************/
 
-#define HIGH_PASS_COEFF	(float)(0.92)
-//#define LOW_PASS_COEFF	(float)0.08
+#define HIGH_PASS_COEFF	(float)(0.98)
 #define LOW_PASS_COEFF	(float)(1.00 - HIGH_PASS_COEFF)
 
-bool blinkState = false;
 float acc_pitch_angle = 0;
 float gyro_pitch_angle = 0;
-float filtered_angle = 0;
+double filtered_angle = 90.0;
+double setpoint = SETPOINT;
+double output = 0.0;
 float timestep = 0.02;
 float biasGyroX, biasGyroY, biasGyroZ, biasAccX, biasAccY, biasAccZ;
 unsigned long timer;
 
+PID pid(&filtered_angle, &output, &setpoint, 1.0, 0.0, 0.0, DIRECT);
+
 static void calibrate_sensors(void)
 {
-/*
 	int totalGyroXValues = 0;
 	int totalGyroYValues = 0;
 	int totalGyroZValues = 0;
@@ -68,7 +73,7 @@ static void calibrate_sensors(void)
 	int16_t gx, gy, gz;
 	int i;
 
-	delay(100);
+	delay(2000);
 	for (i = 0; i < 50; i++) {
 		accel.getAcceleration(&ax, &ay, &az);
 		gyro.getRotation(&gx, &gy, &gz);
@@ -93,13 +98,9 @@ static void calibrate_sensors(void)
 	Serial.println(biasAccY);
 	Serial.println(biasAccZ);
 	delay(5000);
-*/
-	biasGyroX = -28.00;
-	biasGyroY = -30.00;
-	biasGyroZ = 11.00;
-	biasAccX = 5.00;
-	biasAccY = -26.00;
-	biasAccZ = -4.00;
+	biasAccX = 0.0;
+	biasAccY = 0.0;
+	biasAccZ = 0.0;
 }
 
 void setup()
@@ -117,6 +118,7 @@ void setup()
 	accel.initialize();
 	gyro.initialize();
 
+
 	// verify connection
 	Serial.println("Testing device connections...");
 	Serial.println(accel.testConnection()? "BMA150 connection successful" :
@@ -127,8 +129,6 @@ void setup()
 	gyro.setRate(9);
 	gyro.setDLPFBandwidth(ITG3200_DLPF_BW_98);
 	calibrate_sensors();
-	// configure Arduino LED for
-	pinMode(LED_PIN, OUTPUT);
 
 	//configure Motor Driver pins
 	pinMode(STBY, OUTPUT);
@@ -139,6 +139,13 @@ void setup()
 	pinMode(PWMB, OUTPUT);
 	pinMode(BIN1, OUTPUT);
 	pinMode(BIN2, OUTPUT);
+
+	pinMode(LED_PIN, OUTPUT);
+
+	//pid.set_setpoint(SETPOINT);
+	pid.SetOutputLimits(-255, 255);
+	pid.SetMode(AUTOMATIC);
+	pid.SetSampleTime(timestep * 1000);
 }
 
 static float calculate_acc_angle(void)
@@ -156,7 +163,7 @@ static float calculate_gyro_angle(float feedback)
 {
 	int16_t gx, gy, gz;
 	gyro.getRotation(&gx, &gy, &gz);
-	return feedback + ((gx - biasGyroX) / 14.375) * timestep;
+	return feedback + ((gx - biasGyroX) / 14.375) * timestep; // take gyro sensitivity into account
 }
 
 static float filter_angle(float gyro, float acc)
@@ -165,75 +172,71 @@ static float filter_angle(float gyro, float acc)
 	return (HIGH_PASS_COEFF * gyro) + (LOW_PASS_COEFF * acc);
 }
 
-static void update_pid_params(void)
+static void update_pid_params(float feedback, double *sp)
 {
-	float kp = 15.0;
-	float ki = 0.005;
-	float kd = 3.0;
-	//int kp = analogRead(KP_PIN);
-	//int ki = analogRead(KI_PIN);
-	//int kd = analogRead(KD_PIN);
-	pid.set_params(kp, ki, kd);
+	float kp = (analogRead(KP_PIN)/1023.0) * 30;
+	float ki = (analogRead(KI_PIN)/1023.0) * 9;
+	float kd = analogRead(KD_PIN)/1023.0;
+	*sp = 85 + (analogRead(SP_PIN)/102.3);
+	Serial.print("pot kp: ");Serial.print(kp);Serial.print(" ");
+	Serial.print("pot ki: ");Serial.print(ki);Serial.print(" ");
+	Serial.print("pot kd: ");Serial.print(kd);Serial.print(" ");
+	Serial.print("pot sp: ");Serial.print(*sp);Serial.print(" ");
+	//pid.set_params(kp, ki, kd);
+	pid.SetTunings(kp, ki, kd);
+	if (feedback < (*sp + 0.25) && feedback > (*sp - 0.25))
+		digitalWrite(LED_PIN, 1);
+	else
+		digitalWrite(LED_PIN, 0);
 }
 
-static void motor_drive(int motor, int speed)
+static void motor_drive(int speed)
 {
 	int direction = (speed < 0) ? FORWARD : REVERSE;
-	digitalWrite(STBY, HIGH);   // wakeup
-	if (MOTOR_A == motor) {
-		switch (direction) {
-		case FORWARD:
-			digitalWrite(AIN1, HIGH);
-			digitalWrite(AIN2, LOW);
-			break;
-		case REVERSE:
-			digitalWrite(AIN1, LOW);
-			digitalWrite(AIN2, HIGH);
-			break;
-		default:
-			return;
-		}
-		analogWrite(PWMA, abs(speed));
-	} else {
-		switch (direction) {
-		case FORWARD:
-			digitalWrite(BIN1, HIGH);
-			digitalWrite(BIN2, LOW);
-			break;
-		case REVERSE:
-			digitalWrite(BIN1, LOW);
-			digitalWrite(BIN2, HIGH);
-			break;
-		default:
-			return;
-		}
-		analogWrite(PWMB, abs(speed));
+	digitalWrite(STBY, HIGH);	// wakeup
+	switch (direction) {
+	case FORWARD:
+		digitalWrite(AIN1, LOW);
+		digitalWrite(AIN2, HIGH);
+		digitalWrite(BIN1, HIGH);
+		digitalWrite(BIN2, LOW);
+		break;
+	case REVERSE:
+		digitalWrite(AIN1, HIGH);
+		digitalWrite(AIN2, LOW);
+		digitalWrite(BIN1, LOW);
+		digitalWrite(BIN2, HIGH);
+		break;
+	default:
+		return;
 	}
+	analogWrite(PWMA, abs(speed));
+	analogWrite(PWMB, abs(speed));
 }
 
 void loop()
 {
-	update_pid_params();
+	update_pid_params(filtered_angle, &setpoint);
 	timer = millis();
 	acc_pitch_angle = calculate_acc_angle();
 	gyro_pitch_angle = calculate_gyro_angle(filtered_angle);
 	filtered_angle = filter_angle(gyro_pitch_angle, acc_pitch_angle);
-	float output = pid.update(filtered_angle);
-	motor_drive(MOTOR_A, output);
-	motor_drive(MOTOR_B, -output);
+	//float output = pid.update(filtered_angle);
 
-	Serial.print("acc: ");
-	Serial.print(acc_pitch_angle);
-	Serial.print(" gyro: ");
-	Serial.print(gyro_pitch_angle);
+	pid.Compute();
+
+	if (filtered_angle > 20  && filtered_angle < 160)
+		motor_drive(output);
+	else
+		motor_drive(0);
+
+	Serial.print(" time: ");
+	Serial.print(timer);
 	Serial.print(" filtered: ");
 	Serial.print(filtered_angle);
 	Serial.print(" speed: ");
 	Serial.println(output);
 
-	// blink LED to indicate activity
-	blinkState = !blinkState;
-	digitalWrite(LED_PIN, blinkState);
 
 	timer = millis() - timer;
 	timer = (timestep * 1000) - timer;
