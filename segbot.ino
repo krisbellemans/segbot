@@ -55,7 +55,7 @@ float gyro_pitch_angle = 0;
 double filtered_angle = 90.0;
 double setpoint = SETPOINT;
 double output = 0.0;
-float timestep = 0.02;
+float timestep = 0.01;
 float biasGyroX, biasGyroY, biasGyroZ, biasAccX, biasAccY, biasAccZ;
 unsigned long timer;
 
@@ -146,6 +146,7 @@ void setup()
 	pid.SetOutputLimits(-255, 255);
 	pid.SetMode(AUTOMATIC);
 	pid.SetSampleTime(timestep * 1000);
+	digitalWrite(STBY, HIGH);	// wakeup
 }
 
 static float calculate_acc_angle(void)
@@ -178,10 +179,12 @@ static void update_pid_params(float feedback, double *sp)
 	float ki = (analogRead(KI_PIN)/1023.0) * 9;
 	float kd = analogRead(KD_PIN)/1023.0;
 	*sp = 85 + (analogRead(SP_PIN)/102.3);
+/*
 	Serial.print("pot kp: ");Serial.print(kp);Serial.print(" ");
 	Serial.print("pot ki: ");Serial.print(ki);Serial.print(" ");
 	Serial.print("pot kd: ");Serial.print(kd);Serial.print(" ");
 	Serial.print("pot sp: ");Serial.print(*sp);Serial.print(" ");
+*/
 	//pid.set_params(kp, ki, kd);
 	pid.SetTunings(kp, ki, kd);
 	if (feedback < (*sp + 0.25) && feedback > (*sp - 0.25))
@@ -193,7 +196,6 @@ static void update_pid_params(float feedback, double *sp)
 static void motor_drive(int speed)
 {
 	int direction = (speed < 0) ? FORWARD : REVERSE;
-	digitalWrite(STBY, HIGH);	// wakeup
 	switch (direction) {
 	case FORWARD:
 		digitalWrite(AIN1, LOW);
@@ -230,12 +232,12 @@ void loop()
 	else
 		motor_drive(0);
 
-	Serial.print(" time: ");
-	Serial.print(timer);
-	Serial.print(" filtered: ");
-	Serial.print(filtered_angle);
-	Serial.print(" speed: ");
-	Serial.println(output);
+	//Serial.print(" time: ");
+	//Serial.print(timer);
+	//Serial.print(" filtered: ");
+	//Serial.print(filtered_angle);
+	//Serial.print(" speed: ");
+	//Serial.println(output);
 
 
 	timer = millis() - timer;
