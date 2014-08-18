@@ -91,12 +91,12 @@ static void calibrate_sensors(void)
 	biasAccX = totalAccelXValues / 50;
 	biasAccY = totalAccelYValues / 50;
 	biasAccZ = (totalAccelZValues / 50) - 272;
-	Serial.println(biasGyroX);
-	Serial.println(biasGyroY);
-	Serial.println(biasGyroZ);
-	Serial.println(biasAccX);
-	Serial.println(biasAccY);
-	Serial.println(biasAccZ);
+	//Serial.println(biasGyroX);
+	//Serial.println(biasGyroY);
+	//Serial.println(biasGyroZ);
+	//Serial.println(biasAccX);
+	//Serial.println(biasAccY);
+	//Serial.println(biasAccZ);
 	delay(5000);
 	biasAccX = 0.0;
 	biasAccY = 0.0;
@@ -114,17 +114,17 @@ void setup()
 	Serial.begin(38400);
 
 	// initialize device
-	Serial.println("Initializing I2C devices...");
+	//Serial.println("Initializing I2C devices...");
 	accel.initialize();
 	gyro.initialize();
 
 
 	// verify connection
-	Serial.println("Testing device connections...");
-	Serial.println(accel.testConnection()? "BMA150 connection successful" :
-		       "BMA150 connection failed");
-	Serial.println(gyro.testConnection()? "ITG3200 connection succesful" :
-		       "ITG3200 connection failed");
+	//Serial.println("Testing device connections...");
+	//Serial.println(accel.testConnection()? "BMA150 connection successful" :
+		       //"BMA150 connection failed");
+	//Serial.println(gyro.testConnection()? "ITG3200 connection succesful" :
+		       //"ITG3200 connection failed");
 
 	gyro.setRate(9);
 	gyro.setDLPFBandwidth(ITG3200_DLPF_BW_98);
@@ -232,12 +232,12 @@ void loop()
 	else
 		motor_drive(0);
 
-	//Serial.print(" time: ");
-	//Serial.print(timer);
-	//Serial.print(" filtered: ");
-	//Serial.print(filtered_angle);
-	//Serial.print(" speed: ");
-	//Serial.println(output);
+	Serial.print("time: ");
+	Serial.print(timer);
+	Serial.print(" filtered: ");
+	Serial.print(filtered_angle);
+	Serial.print(" speed: ");
+	Serial.println(output);
 
 
 	timer = millis() - timer;
