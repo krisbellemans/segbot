@@ -55,7 +55,7 @@ float gyro_pitch_angle = 0;
 double filtered_angle = 90.0;
 double setpoint = SETPOINT;
 double output = 0.0;
-float timestep = 0.01;
+float timestep = 0.02;
 float biasGyroX, biasGyroY, biasGyroZ, biasAccX, biasAccY, biasAccZ;
 unsigned long timer;
 
@@ -175,16 +175,14 @@ static float filter_angle(float gyro, float acc)
 
 static void update_pid_params(float feedback, double *sp)
 {
-	float kp = (analogRead(KP_PIN)/1023.0) * 30;
-	float ki = (analogRead(KI_PIN)/1023.0) * 9;
-	float kd = analogRead(KD_PIN)/1023.0;
+	float kp = (analogRead(KP_PIN)/1023.0) * 100;
+	float ki = (analogRead(KI_PIN)/1023.0) * 50;
+	float kd = (analogRead(KD_PIN)/1023.0) * 50;
 	*sp = 85 + (analogRead(SP_PIN)/102.3);
-/*
-	Serial.print("pot kp: ");Serial.print(kp);Serial.print(" ");
-	Serial.print("pot ki: ");Serial.print(ki);Serial.print(" ");
-	Serial.print("pot kd: ");Serial.print(kd);Serial.print(" ");
-	Serial.print("pot sp: ");Serial.print(*sp);Serial.print(" ");
-*/
+	Serial.print("kp: ");Serial.print(kp);Serial.print(" ");
+	Serial.print("ki: ");Serial.print(ki);Serial.print(" ");
+	Serial.print("kd: ");Serial.print(kd);Serial.print(" ");
+	Serial.print("sp: ");Serial.print(*sp);Serial.print(" ");
 	//pid.set_params(kp, ki, kd);
 	pid.SetTunings(kp, ki, kd);
 	if (feedback < (*sp + 0.25) && feedback > (*sp - 0.25))
@@ -234,7 +232,7 @@ void loop()
 
 	Serial.print("time: ");
 	Serial.print(timer);
-	Serial.print(" filtered: ");
+	Serial.print(" angle: ");
 	Serial.print(filtered_angle);
 	Serial.print(" speed: ");
 	Serial.println(output);
