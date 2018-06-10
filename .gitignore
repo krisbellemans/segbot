@@ -1,0 +1,5 @@
+*.o
+.dep/
+.lib/
+segbot.hex
+*.swp
