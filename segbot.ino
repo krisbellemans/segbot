@@ -55,7 +55,7 @@ float gyro_pitch_angle = 0;
 double filtered_angle = 90.0;
 double setpoint = SETPOINT;
 double output = 0.0;
-float timestep = 0.02;
+float timestep = 0.01;
 float biasGyroX, biasGyroY, biasGyroZ, biasAccX, biasAccY, biasAccZ;
 unsigned long timer;
 
@@ -97,7 +97,7 @@ static void calibrate_sensors(void)
 	//Serial.println(biasAccX);
 	//Serial.println(biasAccY);
 	//Serial.println(biasAccZ);
-	delay(5000);
+	//delay(5000);
 	biasAccX = 0.0;
 	biasAccY = 0.0;
 	biasAccZ = 0.0;
@@ -216,8 +216,8 @@ static void motor_drive(int speed)
 
 void loop()
 {
-	update_pid_params(filtered_angle, &setpoint);
 	timer = millis();
+	update_pid_params(filtered_angle, &setpoint);
 	acc_pitch_angle = calculate_acc_angle();
 	gyro_pitch_angle = calculate_gyro_angle(filtered_angle);
 	filtered_angle = filter_angle(gyro_pitch_angle, acc_pitch_angle);
@@ -239,10 +239,6 @@ void loop()
 
 
 	timer = millis() - timer;
-	Serial.print("timediff: ");
-	Serial.print(timer);
 	timer = (timestep * 1000) - timer;
-	Serial.print("timestep: ");
-	Serial.print(timer);
-	//delay(timer);
+	delay(timer);
 }
